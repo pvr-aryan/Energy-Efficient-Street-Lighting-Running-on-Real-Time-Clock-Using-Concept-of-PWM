@@ -1,0 +1,58 @@
+`timescale 1ns/1ps
+
+module testbench;
+
+    reg clk, reset;
+    reg [5:0] hour, minute;  // Manually controlled time
+    wire PWM_out;
+    wire [7:0] duty_cycle;
+
+    // Instantiate the Adaptive PWM module
+    Adaptive_PWM uut (
+        .clk(clk),
+        .reset(reset),
+        .hour(hour),
+        .minute(minute),
+        .PWM_out(PWM_out),
+        .duty_cycle(duty_cycle)
+    );
+
+    // Clock Generation (10ns period -> 100MHz clock)
+    always #5 clk = ~clk;
+
+    initial begin
+        $display("Starting Simulation...");
+        $dumpfile("dump.vcd");  // Specifies the output VCD file
+        $dumpvars(0, testbench); // Dumps all variables in testbench
+
+        clk = 0;
+        reset = 1;
+        #10 reset = 0; // Release reset after 10 time units
+
+        // Start testing for the required time range (5 PM to 7 AM)
+        hour = 6'd17; minute = 6'd0;   // 5:00 PM
+        #100;
+        minute = 6'd30;               // 5:30 PM
+        #100;
+        hour = 6'd18; minute = 6'd0;   // 6:00 PM
+        #100;
+        minute = 6'd30;               // 6:30 PM
+        #100;
+        hour = 6'd19; minute = 6'd0;   // 7:00 PM
+        #100;
+        hour = 6'd5; minute = 6'd0;    // 5:00 AM
+        #100;
+        minute = 6'd30;               // 5:30 AM
+        #100;
+        hour = 6'd6; minute = 6'd0;    // 6:00 AM
+        #100;
+        minute = 6'd30;               // 6:30 AM
+        #100;
+        hour = 6'd7; minute = 6'd0;    // 7:00 AM
+        #100;
+
+        $display("Simulation Completed.");
+        $finish; // End simulation
+    end
+
+endmodule

@@ -1,0 +1,107 @@
+module Adaptive_PWM(
+    input clk,         // Clock input
+    input reset,       // Reset input
+    input [5:0] hour,  // Hour input from RTC
+    input [5:0] minute,// Minute input from RTC
+    output reg PWM_out, // PWM output
+    output reg [7:0] duty_cycle
+);
+
+wire [7:0] counter_out;  // Counter output
+reg [3:0] state;         // State machine states
+
+// Counter instance
+counter counter_inst(
+    .clk(clk),
+    .reset(reset),       
+    .counter_out(counter_out)
+);
+
+always @(posedge clk or posedge reset) begin
+    if (reset) begin
+        // Reset everything
+        duty_cycle <= 8'd0;
+        state <= 4'd0;
+        PWM_out <= 1'b0;
+    end else begin
+        case(state)
+            4'd0: if (hour == 6'd17 && minute == 6'd30) begin duty_cycle <= 8'd64;  state <= 4'd1; end
+            4'd1: if (hour == 6'd18 && minute == 6'd0)  begin duty_cycle <= 8'd128; state <= 4'd2; end
+            4'd2: if (hour == 6'd18 && minute == 6'd30) begin duty_cycle <= 8'd192; state <= 4'd3; end
+            4'd3: if (hour == 6'd19 && minute == 6'd0)  begin duty_cycle <= 8'd255; state <= 4'd4; end
+            4'd4: if (hour == 6'd5  && minute == 6'd0)  begin duty_cycle <= 8'd192; state <= 4'd5; end
+            4'd5: if (hour == 6'd5  && minute == 6'd30) begin duty_cycle <= 8'd128; state <= 4'd6; end
+            4'd6: if (hour == 6'd6  && minute == 6'd0)  begin duty_cycle <= 8'd64;  state <= 4'd7; end
+            4'd7: if (hour == 6'd6  && minute == 6'd30) begin duty_cycle <= 8'd0;   state <= 4'd0; end
+        endcase
+
+        
+        if (hour >= 6'd7 && hour < 6'd17) begin
+            PWM_out <= 1'b0;  // Turn off PWM only from 7 AM to 5 PM
+        end else begin
+            PWM_out <= (counter_out < duty_cycle) ? 1'b1 : 1'b0; // Normal PWM operation
+        end
+    end
+end
+
+endmodule
+
+
+module RTC(
+    input clk, 
+    input reset, // Added reset input
+    output reg [5:0] hour, 
+    output reg [5:0] minute, 
+    output reg [5:0] second 
+);
+
+reg [31:0] counter; 
+
+always @(posedge clk or posedge reset) begin
+    if (reset) begin
+        counter <= 32'd0;
+        hour <= 6'd17;   // Start at 17:00 (5 PM)
+        minute <= 6'd0;
+        second <= 6'd0;
+    end else begin
+        counter <= counter + 1'b1;
+
+        if (counter == 60) begin // 60 clock cycles = 1 second
+            second <= second + 1;
+            counter <= 0;
+            
+            if (second == 59) begin
+                second <= 0;
+                minute <= minute + 1;
+
+                if (minute == 59) begin
+                    minute <= 0;
+                    hour <= hour + 1;
+
+                    if (hour == 23) begin
+                        hour <= 0; // Reset hour after 23:59 to 00:00
+                    end
+                end
+            end
+        end
+    end
+end
+endmodule
+
+
+module counter(
+    input clk, reset,   
+    output reg [7:0] counter_out 
+);
+
+always @(posedge clk or posedge reset) begin
+    if (reset) begin
+        counter_out <= 8'd0; 
+    end else if (counter_out == 8'd255) begin
+        counter_out <= 8'd0; 
+    end else begin
+        counter_out <= counter_out + 1'b1; 
+    end
+end
+
+endmodule

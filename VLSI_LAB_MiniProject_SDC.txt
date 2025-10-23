@@ -1,0 +1,35 @@
+# Set design constraints for synthesis in Cadence Genus
+set_design_top Adaptive_PWM  ; # Specify the top module
+
+# Define Clock Constraints
+create_clock -name clk -period 10 [get_ports clk] ; # 100MHz Clock (10ns period)
+set_clock_uncertainty -setup 0.2 [get_clocks clk] ; # Setup Uncertainty
+
+# Input and Output Delays
+set_input_delay -clock clk 1.5 [get_ports hour] 
+set_input_delay -clock clk 1.5 [get_ports minute]
+set_output_delay -clock clk 1.0 [get_ports PWM_out]
+set_output_delay -clock clk 1.0 [get_ports duty_cycle]
+
+# Set Power Constraints
+set_power_analysis_mode -method vectorless  ; # Use vectorless estimation
+set_switching_activity -power 0.5 [get_ports clk] ; # 50% activity factor
+
+# Area and Optimization Constraints
+set_max_area 100000 ; # Example constraint (adjust as needed)
+set_max_power 1.0 ; # Example power constraint (in mW, adjust as needed)
+
+# Timing Constraints
+set_max_delay 5 [get_paths -from [get_ports hour] -to [get_ports PWM_out]]
+set_max_delay 5 [get_paths -from [get_ports minute] -to [get_ports duty_cycle]]
+
+# Define operating conditions (adjust based on your process technology)
+set_operating_conditions -library "your_library.db" -corner fast
+
+# Enable Netlist Generation
+write_netlist -format verilog -output adaptive_pwm_netlist.v
+
+# Generate Reports
+report_area > area_report.txt
+report_power > power_report.txt
+report_timing > timing_report.txt
